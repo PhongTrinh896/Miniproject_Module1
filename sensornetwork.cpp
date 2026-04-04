@@ -5,29 +5,40 @@
 #include <windows.h>
 #include <time.h>
 
+#define MAX_SENSORS 30
+#define BUFFER_SIZE 10
+#define NUMBER_OF_STATS 3
+
 enum condition{
 	DISCONNECTED = 0,
 	CONNECTED = 1
 };
 typedef struct Sensor_stats{
-	uint8_t ID, over_counter, error_counter;
-	uint16_t frequency;
+	uint8_t ID;
 	char sensor_name[15];
+	uint16_t frequency;
+	
 	float data, maximum_value;
 	enum condition current_state;
 	char data_file_name[12];
 	Sensor_stats *next;
+	
+	uint16_t over_counter, error_counter, overflow_counter;
+	
+	float buffer[BUFFER_SIZE];
+	uint8_t head, buffer_count;
 } Sensor_stats;
+
 // Cau truc FILE sensor: ID Ten_sensor Frequency(in Hz) Max_value
 
 float receive_data_sensor(Sensor_stats *S, FILE* reportfptr);
+void add_data_to_buffer (Sensor_stats* S, float data, FILE* errorfptr);
 void add_Node(Sensor_stats *S1, Sensor_stats *S2);
 void delete_Node(Sensor_stats *S1, Sensor_stats *S2, Sensor_stats *S3);
 Sensor_stats* init_sensor(uint8_t sensor_counter, FILE* fptr);
 void update_data_to_file(Sensor_stats *S, float data);
-int update_data (Sensor_stats *S, float new_data, FILE * errorfptr);
-uint8_t check_invalid_data (float data, Sensor_stats* S, FILE* errorfptr);
-void average_filter (Sensor_stats* S, FILE* reportfptr);
+void check_invalid_data (float data, Sensor_stats* S, FILE* errorfptr);
+void apply_average_filter (Sensor_stats* S,float data, FILE* reportfptr);
 void send_actuator (Sensor_stats* S);
 void report(Sensor_stats* S, FILE* reportfptr);
 
@@ -35,7 +46,11 @@ void report(Sensor_stats* S, FILE* reportfptr);
 int main(){
 	time_t now = time(NULL);
 	uint8_t sensor_counter = 0;
-	FILE *sensorFileptr = fopen("SENSOR_FILE_.txt", "rt");
+	FILE *sensorFileptr = fopen("SENSOR_FILE.txt", "rt");
+	if (sensorFileptr == NULL) {
+        printf("Khong the mo tep cau hinh SENSOR_FILE. Vui long kiem tra lai.\n");
+        return 0;
+    }
 	FILE *errorFileptr = fopen("ERROR_FILE.txt", "w+");
 	
 	Sensor_stats* collection[30];
@@ -48,17 +63,11 @@ int main(){
     		add_Node(collection[sensor_counter - 1], collection[sensor_counter]);
 		}
 	}
-	
+	fclose(sensorFileptr);
 	
 	while(1){
 		float input = receive_data_sensor(collection[0], errorFileptr);
 		if(input){
-			if(check_invalid_data(input, collection[0], errorFileptr)){
-				average_filter(collection[0], errorFileptr);
-			}
-			else{
-				update_data(collection[0], input, errorFileptr);
-			}
 		}
 		
 	}
@@ -79,7 +88,7 @@ int main(){
 	fprintf(finalFileptr, "FINAL REPORT ---\n");
 	report(collection[0], finalFileptr);
 	
-	fclose(sensorFileptr);
+	
 	fclose(errorFileptr);
 	fclose(finalFileptr);
 }
@@ -98,11 +107,19 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *fptr){
 			fgets(s, 100, fptr);
 		}
 	} while (S->ID != list_counter);
+	
 	S->current_state = CONNECTED;
 	S->error_counter = 0;
 	S->over_counter = 0;
+	S->overflow_counter = 0;
 	S->next = NULL;
-	fscanf(fptr, " %s %hu %f", S->sensor_name, S->frequency, S->maximum_value);
+	
+	S->buffer_count = 0;
+	S->head = 0;
+	S->buffer = {0};
+	
+	uint8_t verifier = fscanf(fptr, " %s %hu %f", S->sensor_name, S->frequency, S->maximum_value);
+	if (verifier != NUMBER_OF_STATS)    return NULL;
 	snprintf(S->data_file_name, sizeof(S->data_file_name),"Sens%d.dat", S->ID); // tao 1 file cho tung sensor de ghi data
 	return S;
 }
@@ -127,35 +144,41 @@ void update_data_to_file(Sensor_stats *S, float data){
 	fclose(fptr);
 }
 
+void add_data_to_buffer (Sensor_stats* S, float data, FILE* errorfptr){
+	if (S->buffer_count == BUFFER_SIZE) {
+        S->overflow_counter++;
+        fprintf(errorfptr, "[OVERFLOW] ID %hu: Bo dem day, dang ghi de mau cu\n", S->ID);
+    } 
+	else {
+        S->buffer_count++;
+    }
 
+    S->buffer[S->head] = data;
+    S->head = (S->head + 1) % BUFFER_SIZE;
+    update_data_to_file(S, data);
+}
+
+// Ham check vuot nguong
 uint8_t check_invalid_data (float data, Sensor_stats* S, FILE* errorfptr){
 	if (data > (S->maximum_value)){
 		time_t now = time(NULL);
 		printf("Sensor ID number %hu reached overload value %f at %s\n", S->ID, data, ctime(&now));
 		fprintf(errorfptr, "Sensor ID number %hu reached overload value %f at %s\n", S->ID, data, ctime(&now));
-		return S->over_counter ++;
-	}
-	return 0;
-}
-
-int update_data (Sensor_stats *S, float new_data, FILE * errorfptr){
-	if (!check_invalid_data(new_data, S, errorfptr)){
-		S->data = new_data;
-		update_data_to_file(S, new_data);
-		send_actuator(S);
+		S->over_counter ++;
+		
+		apply_average_filter(S, data, errorfptr);
 		return 1;
 	}
 	return 0;
 }
 
-void average_filter (Sensor_stats* S, FILE* reportfptr){
-	uint8_t i = 0;
-	while (i < 10){
-		float inputs = receive_data_sensor(S, reportfptr);
-		(S->data) += inputs;
-		update_data_to_file(S, inputs);
+
+void apply_average_filter (Sensor_stats* S, float data, FILE* errorfptr){
+	S->data = 0;
+	for (uint8_t i = 0; i < BUFFER_SIZE; i++){
+		(S->data) += S->buffer[i];
 	}
-	S->data /= 10;
+	S->data /= BUFFER_SIZE;
 	send_actuator(S);
 }
 
@@ -188,7 +211,7 @@ float receive_data_sensor(Sensor_stats *S, FILE *reportfptr){
 void report(Sensor_stats* S, FILE* reportfptr){
 	FILE *sensorfptr = fopen(S->data_file_name, "r");
 	rewind(sensorfptr);
-	uint16_t counter;
+	uint16_t counter = 0;
 	double summing_data;
 	float max = 0, min= S->maximum_value;
 	while (!feof(sensorfptr)){
@@ -197,6 +220,7 @@ void report(Sensor_stats* S, FILE* reportfptr){
 		summing_data += x;
 		if (max < x)   { max = x; }
 		if (min > x)   { min = x; }
+		counter++;
 	}
 	float avg_value = summing_data/counter;
 	fprintf(reportfptr, "Sensor ID %hu:\n  So luong ban tin loi: %hu\n  So lan vuot nguong: %hu\n  GTLN/GTNN/GTTB: %f/%f/%f\n", S->error_counter, S->over_counter, max, min, avg_value);
