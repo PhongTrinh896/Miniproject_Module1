@@ -10,15 +10,15 @@ enum condition{
 	CONNECTED = 1
 };
 typedef struct Sensor_stats{
-	uint8_t ID, over_counter = 0, error_counter = 0;
+	uint8_t ID, over_counter, error_counter;
 	uint16_t frequency;
 	char sensor_name[15];
 	float data, maximum_value;
 	enum condition current_state;
 	char data_file_name[12];
-	Sensor_stats *next = NULL;
+	Sensor_stats *next;
 } Sensor_stats;
-// Cau truc FILE sensor: ID, Ten_sensor, Frequency (in Hz), Max_value
+// Cau truc FILE sensor: ID Ten_sensor Frequency(in Hz) Max_value
 
 float receive_data_sensor(Sensor_stats *S, FILE* reportfptr);
 void add_Node(Sensor_stats *S1, Sensor_stats *S2);
@@ -29,50 +29,39 @@ int update_data (Sensor_stats *S, float new_data, FILE * errorfptr);
 uint8_t check_invalid_data (float data, Sensor_stats* S, FILE* errorfptr);
 void average_filter (Sensor_stats* S, FILE* reportfptr);
 void send_actuator (Sensor_stats* S);
+void report(Sensor_stats* S, FILE* reportfptr);
 
 // ---------- MAIN FUNCTION -----------
 int main(){
 	time_t now = time(NULL);
 	uint8_t sensor_counter = 0;
 	FILE *sensorFileptr = fopen("SENSOR_FILE_.txt", "rt");
-	FILE *errorFileptr = fopen("REPORT_FILE.txt", "w+");
-	Sensor_stats* collection[20];
-	Sensor_stats *S1 = init_sensor(sensor_counter, sensorFileptr);
-	while (!feof(sensorFileptr)){
-		
+	FILE *errorFileptr = fopen("ERROR_FILE.txt", "w+");
+	
+	Sensor_stats* collection[30];
+	//Sensor_stats *S1 = init_sensor(sensor_counter, sensorFileptr);
+	while (!feof(sensorFileptr) && sensor_counter < 30){
+		// Tim cach khai bao array chua nhieu sensor theo file de noi cac nodes
+		collection[sensor_counter] = init_sensor(sensor_counter, sensorFileptr);
+    	sensor_counter++;
+    	if (sensor_counter >0){
+    		add_Node(collection[sensor_counter - 1], collection[sensor_counter]);
+		}
 	}
+	
 	
 	while(1){
-		float input = receive_data_sensor(S1, errorFileptr);
+		float input = receive_data_sensor(collection[0], errorFileptr);
 		if(input){
-			if(check_invalid_data(input, S1, errorFileptr)){
-				average_filter(S1, errorFileptr);
+			if(check_invalid_data(input, collection[0], errorFileptr)){
+				average_filter(collection[0], errorFileptr);
 			}
 			else{
-				update_data(S1, input, errorFileptr);
+				update_data(collection[0], input, errorFileptr);
 			}
 		}
 		
 	}
-	// Test lay max, min, avg data cua sensor
-	FILE *fptr = fopen(S1->data_file_name, "r");
-	rewind(fptr);
-	uint16_t counter;
-	float summing_data, max = 0, min= S1->maximum_value;
-	while (!feof(fptr)){
-		float x;
-		fgets(x, sizeof(x), fptr);
-		summing_data += x;
-		if (max < x){
-			max = x;
-		}
-		if (min > x){
-			min = x;
-		}
-	}
-	float avg_value = summing_data/counter;
-	
-	
 	
 	/*Sensor_stats *S2 = (Sensor_stats*)malloc(sizeof(Sensor_stats));
 	Sensor_stats *S3 = (Sensor_stats*)malloc(sizeof(Sensor_stats));
@@ -85,9 +74,14 @@ int main(){
 	/*printf("S1 now point to: %p\n", (void*)S1->next);
 	printf("Real address of S3: %p\n", (void *)S3);
 	printf("Real address of S2: %p\n", (void *)S2);*/
+	FILE *finalFileptr = fopen("REPORT_FILE.txt", "a+");
+	fseek(finalFileptr, 0, SEEK_END);
+	fprintf(finalFileptr, "FINAL REPORT ---\n");
+	report(collection[0], finalFileptr);
 	
 	fclose(sensorFileptr);
 	fclose(errorFileptr);
+	fclose(finalFileptr);
 }
 
 //-------- Ham khoi tao Sensor ----------
@@ -105,7 +99,10 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *fptr){
 		}
 	} while (S->ID != list_counter);
 	S->current_state = CONNECTED;
-	fscanf(fptr, ", %s, %hu, %hu", &(S->sensor_name), &(S->frequency), &(S->maximum_value));
+	S->error_counter = 0;
+	S->over_counter = 0;
+	S->next = NULL;
+	fscanf(fptr, " %s %hu %f", S->sensor_name, S->frequency, S->maximum_value);
 	snprintf(S->data_file_name, sizeof(S->data_file_name),"Sens%d.dat", S->ID); // tao 1 file cho tung sensor de ghi data
 	return S;
 }
@@ -123,6 +120,7 @@ void delete_Node(Sensor_stats *S1, Sensor_stats *S2, Sensor_stats *S3, FILE* rep
 }
 
 //------- Cac ham thao tac du lieu -------
+// Update data vao trong file ghi du lieu rieng tung sensor
 void update_data_to_file(Sensor_stats *S, float data){ 
 	FILE *fptr = fopen(S->data_file_name, "a+t");
 	fprintf(fptr, "%hu\n", data);
@@ -185,3 +183,22 @@ float receive_data_sensor(Sensor_stats *S, FILE *reportfptr){
 	}
 }
 
+// --------- Cac ham ghi report -----------
+
+void report(Sensor_stats* S, FILE* reportfptr){
+	FILE *sensorfptr = fopen(S->data_file_name, "r");
+	rewind(sensorfptr);
+	uint16_t counter;
+	double summing_data;
+	float max = 0, min= S->maximum_value;
+	while (!feof(sensorfptr)){
+		float x;
+		fscanf(sensorfptr, "%f", &x);
+		summing_data += x;
+		if (max < x)   { max = x; }
+		if (min > x)   { min = x; }
+	}
+	float avg_value = summing_data/counter;
+	fprintf(reportfptr, "Sensor ID %hu:\n  So luong ban tin loi: %hu\n  So lan vuot nguong: %hu\n  GTLN/GTNN/GTTB: %f/%f/%f\n", S->error_counter, S->over_counter, max, min, avg_value);
+	fclose(sensorfptr);
+}
