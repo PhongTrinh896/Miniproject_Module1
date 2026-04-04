@@ -1,0 +1,139 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_SENSORS 30
+#define BUFFER_SIZE 10
+#define SIMULATION_CYCLES 200
+
+typedef struct {
+    uint8_t ID;
+    char sensor_name[20];
+    uint16_t frequency;
+    float maximum_value;
+    
+    float buffer[BUFFER_SIZE];
+    int head;
+    int buffer_count;
+    
+    uint16_t over_counter;
+    uint16_t error_counter;
+    uint16_t overflow_counter;
+    uint16_t valid_counter;
+    
+    float sum_data;
+    float max_data;
+    float min_data;
+} Sensor_stats;
+
+int load_sensor_config(Sensor_stats collection[], const char* filename) {
+    FILE *fptr = fopen(filename, "r");
+    if (fptr == NULL) {
+        printf("Khong the mo tep cau hinh %s. Vui long kiem tra lai.\n", filename);
+        return 0;
+    }
+
+    int count = 0;
+    while (count < MAX_SENSORS && fscanf(fptr, "%hhu %s %hu %f", 
+           &collection[count].ID, 
+           collection[count].sensor_name, 
+           &collection[count].frequency, 
+           &collection[count].maximum_value) == 4) {
+        
+        collection[count].head = 0;
+        collection[count].buffer_count = 0;
+        collection[count].over_counter = 0;
+        collection[count].error_counter = 0;
+        collection[count].overflow_counter = 0;
+        collection[count].valid_counter = 0;
+        collection[count].sum_data = 0.0f;
+        collection[count].max_data = -9999.0f;
+        collection[count].min_data = 9999.0f;
+        
+        count++;
+    }
+    
+    fclose(fptr);
+    return count;
+}
+
+void process_incoming_data(Sensor_stats *S, float data, FILE *log_file) {
+    if (data < 0.0f) {
+        S->error_counter++;
+        fprintf(log_file, "[LOI] ID %d (%s): Du lieu %.2f khong hop le\n", S->ID, S->sensor_name, data);
+        return;
+    }
+
+    if (data > S->maximum_value) {
+        S->over_counter++;
+        fprintf(log_file, "[CANH BAO] ID %d (%s): Vuot nguong (%.2f > %.2f)\n", S->ID, S->sensor_name, data, S->maximum_value);
+    }
+
+    if (S->buffer_count == BUFFER_SIZE) {
+        S->overflow_counter++;
+        fprintf(log_file, "[QUA TAI] ID %d: Bo dem day, dang ghi de mau cu\n", S->ID);
+    } else {
+        S->buffer_count++;
+    }
+
+    S->buffer[S->head] = data;
+    S->head = (S->head + 1) % BUFFER_SIZE;
+
+    S->valid_counter++;
+    S->sum_data += data;
+    if (data > S->max_data) S->max_data = data;
+    if (data < S->min_data) S->min_data = data;
+}
+
+void print_system_report(Sensor_stats collection[], int total_sensors) {
+    printf("\n================ BAO CAO TONG HOP HE THONG ================\n");
+    for (int i = 0; i < total_sensors; i++) {
+        Sensor_stats *S = &collection[i];
+        printf("Thiet bi ID: %d | Ten: %s | Nguong: %.2f\n", S->ID, S->sensor_name, S->maximum_value);
+        printf("  - Tong ban tin: Hop le (%d), Loi (%d)\n", S->valid_counter, S->error_counter);
+        printf("  - Vuot nguong: %d lan | Tran bo dem: %d lan\n", S->over_counter, S->overflow_counter);
+        
+        if (S->valid_counter > 0) {
+            float avg = S->sum_data / S->valid_counter;
+            printf("  - Thong ke: Max = %.2f | Min = %.2f | Trung binh = %.2f\n", S->max_data, S->min_data, avg);
+        } else {
+            printf("  - Thong ke: Chua co du lieu hop le.\n");
+        }
+        printf("-----------------------------------------------------------\n");
+    }
+}
+
+int main() {
+    srand((unsigned int)time(NULL));
+    Sensor_stats network[MAX_SENSORS];
+    
+    int active_sensors = load_sensor_config(network, "SENSOR_FILE.txt");
+    if (active_sensors == 0) {
+        printf("He thong dung hoat dong do khong co thiet bi nao duoc nap.\n");
+        return 1;
+    }
+
+    FILE *log_file = fopen("SYSTEM_LOG.txt", "w");
+    if (!log_file) {
+        printf("Khong the tao file ghi log.\n");
+        return 1;
+    }
+
+    printf("Da nap %d thiet bi. He thong dang chay mo phong...\n", active_sensors);
+
+    for (int cycle = 0; cycle < SIMULATION_CYCLES; cycle++) {
+        for (int i = 0; i < active_sensors; i++) {
+            float random_data = (rand() % 8000) / 100.0f - 10.0f; 
+            process_incoming_data(&network[i], random_data, log_file);
+        }
+    }
+
+    printf("Mo phong hoan tat. Dang ket xuat du lieu...\n");
+    print_system_report(network, active_sensors);
+
+    fclose(log_file);
+    return 0;
+}
+
