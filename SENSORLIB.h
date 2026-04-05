@@ -10,7 +10,7 @@
 
 #define MAX_SENSORS 30
 #define BUFFER_SIZE 10
-#define NUMBER_OF_STATS 5
+#define NUMBER_OF_STATS 4
 #define MAXIMUM_ERROR 20
 
 enum condition{
@@ -18,7 +18,7 @@ enum condition{
 	CONNECTED = 1
 };
 
-typedef enum{
+typedef enum {
 	TEMP,
 	HUMID,
 	GAS,
@@ -39,11 +39,12 @@ typedef struct Sensor_stats{
 	long overflow_counter;
 	
 	float buffer[BUFFER_SIZE];
-	uint8_t head, buffer_count;
+	uint8_t head, tail, buffer_count;
 	
 	float max, min;
 } Sensor_stats;
 
+// Cau truc FILE sensor: STT() Ten_sensor Loai_sensor Frequency(in Hz) Max_value
 void calculate_max_min(Sensor_stats* S, float data);
 float receive_data_sensor(Sensor_stats *S, FILE* reportfptr);
 void send_actuator (Sensor_stats* S);
