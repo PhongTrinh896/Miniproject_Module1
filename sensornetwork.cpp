@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <strings.h>
+#include <string.h>
 #include <windows.h>
 #include <time.h>
 
 #define MAX_SENSORS 30
 #define BUFFER_SIZE 10
-#define NUMBER_OF_STATS 3
+#define NUMBER_OF_STATS 4
 #define MAXIMUM_ERROR 20
 
 enum condition{
@@ -19,7 +19,8 @@ enum sensor_type{
 	TEMP,
 	HUMID,
 	GAS,
-	LIGHT
+	LIGHT,
+	INVALID
 };
 typedef struct Sensor_stats{
 	uint8_t ID;
@@ -40,12 +41,13 @@ typedef struct Sensor_stats{
 	float max, min;
 } Sensor_stats;
 
-// Cau truc FILE sensor: ID Ten_sensor Frequency(in Hz) Max_value
+// Cau truc FILE sensor: STT() Ten_sensor Loai_sensor Frequency(in Hz) Max_value
 void calculate_max_min(Sensor_stats* S, float data);
 float receive_data_sensor(Sensor_stats *S, FILE* reportfptr);
 void send_actuator (Sensor_stats* S);
 void add_data_to_buffer (Sensor_stats* S, float data, FILE* errorfptr);
 
+sensor_type parse_sensor_type (const char* str);
 Sensor_stats* init_sensor(uint8_t sensor_counter, FILE* fptr);
 void add_Node(Sensor_stats *collection[], uint8_t sensor_counter, uint8_t* total_sensor, FILE* sensorfptr);
 void delete_Node(Sensor_stats *collection[], uint8_t *total_sensor, int position, FILE* reportfptr);
@@ -56,6 +58,7 @@ void apply_average_filter (Sensor_stats* S, float data, FILE* errorfptr);
 
 void most_error(Sensor_stats* collection[], uint8_t* total_sensor, FILE* errorfptr);
 void report(Sensor_stats* S, FILE* reportfptr);
+void report_per_type(Sensor_stats* collection[], uint8_t total_sensor, const char* str, FILE* reportfptr);
 
 // ---------- MAIN FUNCTION -----------
 int main(){
@@ -103,6 +106,12 @@ int main(){
     FILE *finalFileptr = fopen("REPORT_FILE.txt", "a+");
     fprintf(finalFileptr, "FINAL REPORT ---\n");
     long total_error = 0, valid_counter = 0;
+    
+    report_per_type(collection, total_sensor, "TEMP", finalFileptr);
+    report_per_type(collection, total_sensor, "HUMID", finalFileptr);
+    report_per_type(collection, total_sensor, "GAS", finalFileptr);
+    report_per_type(collection, total_sensor, "LIGHT", finalFileptr);
+    
     for (int i = 0; i < total_sensor; i++){
     	total_error += collection[i]->error_counter;
     	valid_counter += collection[i]->valid;
@@ -115,12 +124,19 @@ int main(){
     return 0;
 }
 
+
 //-------- Ham khoi tao Sensor ----------
 Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 	fseek(sensorfptr, 0, SEEK_CUR);
 	Sensor_stats* S = (Sensor_stats*)malloc(sizeof(Sensor_stats));
 	S->ID = sensor_counter;
-	uint8_t verifier = fscanf(sensorfptr, " %s %hu %f", S->sensor_name, &S->frequency, &S->maximum_value);
+	char type[5];
+	sensor_type s;
+	uint8_t verifier = fscanf(sensorfptr, " %s %s %hu %f", S->sensor_name, type, &S->frequency, &S->maximum_value);
+	s = parse_sensor_type(type);
+	if (s != INVALID){
+		S->type = s;
+	}
 	if (verifier != NUMBER_OF_STATS)    return NULL;
 	S->current_state = CONNECTED;
 	S->error_counter = 0;
@@ -138,6 +154,16 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 	return S;
 }
 
+// Convert sensor type in FILE to enum data type
+enum sensor_type parse_sensor_type (const char* str){
+	if (strcmp(str, "TEMP") == 0) return TEMP;
+    if (strcmp(str, "HUMID") == 0)  return HUMID;
+    if (strcmp(str, "GAS") == 0)  return GAS;
+    if (strcmp(str, "LIGHT") == 0) return LIGHT;
+    
+    return INVALID;
+}
+
 // -------- Cac ham thao tac Nodes ------
 void add_Node(Sensor_stats *collection[], uint8_t sensor_counter, uint8_t* total_sensor, FILE* sensorfptr){
 	if (sensor_counter == MAX_SENSORS){
@@ -150,7 +176,7 @@ void add_Node(Sensor_stats *collection[], uint8_t sensor_counter, uint8_t* total
 		fgets(s, sizeof(s), sensorfptr);
 	}
 	collection[sensor_counter] = init_sensor(sensor_counter + 1, sensorfptr);
-	*total_sensor ++;
+	(*total_sensor) ++;
 }
 
 void delete_Node(Sensor_stats *collection[], uint8_t *total_sensor, int position, FILE* reportfptr){
@@ -234,6 +260,7 @@ float receive_data_sensor(Sensor_stats *S, FILE *reportfptr){
 	Sleep(cycle_timer*1000);
 	float input;
 	S->valid++;
+	while (getchar() != '\n');
 	if (scanf("%f", &input)){
 		return input;
 	}
@@ -261,7 +288,7 @@ void most_error(Sensor_stats* collection[], uint8_t* total_sensor, FILE* errorfp
 	}
 	for (uint8_t i = 0; i < *total_sensor; i++){
 		if (most_error == collection[i]->error_counter){
-			fprintf(errorfptr, "Sensor with the most error: %s, ID: %hu\n", collection[i]->sensor_name, collection[i]->ID);
+			fprintf(errorfptr, "Sensor with the most error: %s, ID: %hu\n-------\n", collection[i]->sensor_name, collection[i]->ID);
 		}
 	}
 }
@@ -273,20 +300,31 @@ void report(Sensor_stats* S, FILE* reportfptr){
 	double summing_data = 0;
 	float x;
 	while (fscanf(sensorfptr, "%f", &x) == 1){
-		fscanf(sensorfptr, "%f", &x);
 		summing_data += x;
 		counter++;
 	}
 	float avg_value = summing_data/counter;
 	fprintf(reportfptr, "\n------------\n");
-	fprintf(reportfptr, "Sensor ID %hu:\n  So luong ban tin loi: %hu\n  So lan vuot nguong: %hu\n  So lan tran bo dem:%ld\n  GTLN/GTNN/GTTB: %f/%f/%f\n", S->error_counter, S->over_counter, S->overflow_counter, S->max, S->min, avg_value);
+	fprintf(reportfptr, "Sensor ID %hu:\n  So luong ban tin loi: %hu\n  So lan vuot nguong: %hu\n  So lan tran bo dem:%ld\n  GTLN/GTNN/GTTB: %f/%f/%f\n",S->ID, S->error_counter, S->over_counter, S->overflow_counter, S->max, S->min, avg_value);
 	fprintf(reportfptr, "\n------------\n");
 	fclose(sensorfptr);
 }
 
+void report_per_type(Sensor_stats* collection[], uint8_t total_sensor, const char* str, FILE* reportfptr){
+	sensor_type type = parse_sensor_type(str);
+    if (type == INVALID){
+        fprintf(reportfptr, "Invalid sensor type: %s\n", str);
+        return;
+    }
+    fprintf(reportfptr, "\n---- Report for %s sensors type ------\n", str);
+    for (uint8_t i = 0; i < total_sensor; i++){
+        if (collection[i] == NULL) continue;
+        if (collection[i]->type == type){
+            report(collection[i], reportfptr);
+        }
+    }
+}
+
 /***NOTE:
-	- Sensor type
-	- Report theo từng type sensor
 	- Xử lý mất mẫu
-	- Check ChatGPT
 */
