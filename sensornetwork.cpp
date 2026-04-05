@@ -137,6 +137,10 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 	if (s != INVALID){
 		S->type = s;
 	}
+	else{
+		free(S);
+		return NULL;
+	}
 	if (verifier != NUMBER_OF_STATS)    return NULL;
 	S->current_state = CONNECTED;
 	S->error_counter = 0;
@@ -238,7 +242,7 @@ uint8_t check_invalid_data (float data, Sensor_stats* S, FILE* errorfptr){
 
 void apply_average_filter (Sensor_stats* S, float data, FILE* errorfptr){
 	S->data = 0;
-	for (uint8_t i = 0; i < BUFFER_SIZE; i++){
+	for (uint8_t i = 0; i < S->buffer_count; i++){
 		(S->data) += S->buffer[i];
 	}
 	S->data /= BUFFER_SIZE;
@@ -259,9 +263,9 @@ float receive_data_sensor(Sensor_stats *S, FILE *reportfptr){
 	double cycle_timer = 1/(S->frequency);
 	Sleep(cycle_timer*1000);
 	float input;
-	S->valid++;
 	while (getchar() != '\n');
 	if (scanf("%f", &input)){
+		S->valid++;
 		return input;
 	}
 	else {
