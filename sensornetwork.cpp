@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <windows.h> 
+#include <windows.h>
 #include <time.h>
 
 #define MAX_SENSORS 30
@@ -25,7 +25,7 @@ typedef enum {
 typedef struct Sensor_stats{
 	uint8_t ID;
 	char sensor_name[15];
-	enum sensor_type type;
+	sensor_type type;
 	uint16_t frequency;
 	
 	float data, maximum_value;
@@ -36,7 +36,7 @@ typedef struct Sensor_stats{
 	long overflow_counter;
 	
 	float buffer[BUFFER_SIZE];
-	uint8_t head, buffer_count;
+	uint8_t head, tail, buffer_count;
 	
 	float max, min;
 } Sensor_stats;
@@ -131,9 +131,8 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 	Sensor_stats* S = (Sensor_stats*)malloc(sizeof(Sensor_stats));
 	S->ID = sensor_counter;
 	char type[5];
-	uint8_t STT;
 	sensor_type s;
-	uint8_t verifier = fscanf(sensorfptr, "%hu %s %s %hu %f",STT, S->sensor_name, type, &S->frequency, &S->maximum_value);
+	uint8_t verifier = fscanf(sensorfptr, " %s %s %hu %f", S->sensor_name, type, &S->frequency, &S->maximum_value);
 	s = parse_sensor_type(type);
 	if (s != INVALID){
 		S->type = s;
@@ -150,7 +149,7 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 	S->valid = 0;
 	
 	S->buffer_count = 0;
-	S->head = 0;
+	S->head = S->tail = 0;
 	memset(S->buffer, 0, sizeof(S->buffer));
 	
 	S->max = 0;
@@ -160,11 +159,11 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 }
 
 // Convert sensor type in FILE to enum data type
-enum sensor_type parse_sensor_type (const char* str){
-	if (strcmp(str, "TEMP") == 0) return TEMP;
-    if (strcmp(str, "HUMID") == 0)  return HUMID;
-    if (strcmp(str, "GAS") == 0)  return GAS;
-    if (strcmp(str, "LIGHT") == 0) return LIGHT;
+sensor_type parse_sensor_type (const char* str){
+	if (!strcmp(str, "TEMP")) return TEMP;
+    if (!strcmp(str, "HUMID"))  return HUMID;
+    if (!strcmp(str, "GAS"))  return GAS;
+    if (!strcmp(str, "LIGHT")) return LIGHT;
     
     return INVALID;
 }
@@ -214,7 +213,8 @@ void update_data_to_file(Sensor_stats *S, float data){
 void add_data_to_buffer (Sensor_stats* S, float data, FILE* errorfptr){
 	if (S->buffer_count == BUFFER_SIZE) {
         S->overflow_counter++;
-        fprintf(errorfptr, "[OVERFLOW] ID %hu: Bo dem day, dang ghi de mau cu\n", S->ID);
+        S->tail = (S->tail + 1) % BUFFER_SIZE; 
+        fprintf(errorfptr, "[OVERFLOW] ID %hu: Buffer full, overwriting oldest data.\n", S->ID);
     } 
 	else {
         S->buffer_count++;
@@ -242,11 +242,12 @@ uint8_t check_invalid_data (float data, Sensor_stats* S, FILE* errorfptr){
 
 
 void apply_average_filter (Sensor_stats* S, float data, FILE* errorfptr){
-	S->data = 0;
-	for (uint8_t i = 0; i < S->buffer_count; i++){
-		(S->data) += S->buffer[i];
+	if (S->buffer_count == 0) return;
+    double sum = 0;
+    for (uint8_t i = 0; i < S->buffer_count; i++) {
+    	sum += S->buffer[i];
 	}
-	S->data /= BUFFER_SIZE;
+    S->data = (float)(sum / S->buffer_count);
 	send_actuator(S);
 }
 
@@ -261,15 +262,16 @@ void send_actuator (Sensor_stats* S){
 
 //Sensor nhan input theo chu ky nhan tin hieu
 float receive_data_sensor(Sensor_stats *S, FILE *reportfptr){
-	double cycle_timer = 1/(S->frequency);
+	double cycle_timer = 1/(S->frequency > 0 ? S->frequency : 1);
 	Sleep(cycle_timer*1000);
 	float input;
-	while (getchar() != '\n');
+	
 	if (scanf("%f", &input)){
 		S->valid++;
 		return input;
 	}
 	else {
+		while (getchar() != '\n');
 		fprintf(reportfptr, "Ivalid input to sensor ID %hu", S->ID);
 		S->error_counter ++;
 		return -1000;
