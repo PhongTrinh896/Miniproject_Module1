@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <windows.h>
+#include <windows.h> 
 #include <time.h>
 
 #define MAX_SENSORS 30
