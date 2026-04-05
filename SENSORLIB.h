@@ -10,7 +10,7 @@
 
 #define MAX_SENSORS 30
 #define BUFFER_SIZE 10
-#define NUMBER_OF_STATS 4
+#define NUMBER_OF_STATS 5
 #define MAXIMUM_ERROR 20
 
 enum condition{
