@@ -2,6 +2,7 @@
 Project Module 1 C Embedded Programming - Sensor network simulation
 
 This program aims to provide an as sufficient as possible system of governing multiple sensors. Because of our lack of knowledge and real life application, we can only simulate 1 data type/sensor (which means a sensor only measures 1 type of environmental value). 
+
 -------------------------------------------
 # INPUT 
 Since it is only simulation, we limit the input to a strictly formatted file of input sensors that you should adhere to, presented as follows: You should
