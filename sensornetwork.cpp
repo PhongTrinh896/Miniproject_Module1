@@ -332,6 +332,3 @@ void report_per_type(Sensor_stats* collection[], uint8_t total_sensor, const cha
     }
 }
 
-/***NOTE:
-	- Xử lý mất mẫu
-*/
