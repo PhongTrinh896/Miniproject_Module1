@@ -15,13 +15,13 @@ enum condition{
 	CONNECTED = 1
 };
 
-enum sensor_type{
+typedef enum {
 	TEMP,
 	HUMID,
 	GAS,
 	LIGHT,
 	INVALID
-};
+} sensor_type;
 typedef struct Sensor_stats{
 	uint8_t ID;
 	char sensor_name[15];
