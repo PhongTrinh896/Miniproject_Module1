@@ -131,8 +131,9 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 	Sensor_stats* S = (Sensor_stats*)malloc(sizeof(Sensor_stats));
 	S->ID = sensor_counter;
 	char type[5];
+	uint8_t STT;
 	sensor_type s;
-	uint8_t verifier = fscanf(sensorfptr, " %s %s %hu %f", S->sensor_name, type, &S->frequency, &S->maximum_value);
+	uint8_t verifier = fscanf(sensorfptr, "%hu %s %s %hu %f",STT, S->sensor_name, type, &S->frequency, &S->maximum_value);
 	s = parse_sensor_type(type);
 	if (s != INVALID){
 		S->type = s;
