@@ -132,7 +132,6 @@ void apply_average_filter (Sensor_stats* S, float data, FILE* errorfptr){
 // ------ Cac ham gia lap nhan input va output du lieu ------
 void send_actuator (Sensor_stats* S){
 	printf("Received data from S%hu: %.2f\n", S->ID, S->data);
-	printf("DEBUG: actuator called\n");
 	if (S->data > S->maximum_value){
 		printf("ALERT\n");
 	}
