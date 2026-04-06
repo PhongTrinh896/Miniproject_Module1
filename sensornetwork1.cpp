@@ -64,7 +64,7 @@ int main(){
             add_data_to_buffer(collection[i], input, errorFileptr);
 
             if (check_invalid_data(input, collection[i], errorFileptr)) {
-                // có thể xử lý thêm nếu cần
+                apply_average_filter(collection[i], input, errorFileptr);
             }
 
             if (collection[i]->error_counter > MAXIMUM_ERROR ||
@@ -103,6 +103,7 @@ int main(){
             total_error, valid_counter);
 
     fclose(errorFileptr);
+    fclose(finalFileptr);
 
     return 0;
 }
