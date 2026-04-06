@@ -99,17 +99,14 @@ void add_data_to_buffer(Sensor_stats* S, float data, FILE* ef) {
     update_data_to_file(S, data); 
 }
 
-// Kiểm tra giá trị vượt ngưỡng
 uint8_t check_invalid_data(float data, Sensor_stats* S, FILE* ef) {
     if (data > S->maximum_value) {
-        time_t now = time(NULL);
-		printf("Sensor ID number %hu reached overload value %f at %s\n", S->ID, data, ctime(&now));
-		fprintf(ef, "Sensor ID number %hu reached overload value %f at %s\n", S->ID, data, ctime(&now));
-		S->over_counter ++;
-		
-		return 1;
+        S->over_counter++;
+        fprintf(ef, "[OVERLOAD] ID %d: %.2f\n", S->ID, data);
+        return 1;
     }
     return 0; 
+   
 }
 
 
@@ -127,6 +124,7 @@ void apply_average_filter (Sensor_stats* S, float data, FILE* errorfptr){
     }
 
     if (count == 0) return; // tránh chia 0
+
     S->data = (float)(sum / count);
 
 }
@@ -141,11 +139,22 @@ void send_actuator (Sensor_stats* S){
 }
 
 //Sensor nhan input theo chu ky nhan tin hieu
+//float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
+
+    //float input;
+
+   // input = (rand() % 1000) / 10.0;
+
+   // printf("AUTO DATA sensor %d: %.2f\n", S->ID, input);
+
+   // S->valid++;
+  // return input;
+//}
 float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
     char line[100];
     float input;
 
-    Sleep(1000 / (S->frequency > 0 ? S->frequency : 1));
+    usleep(1000 / (S->frequency > 0 ? S->frequency : 1));
 
     printf("Nhap du lieu cho sensor %d: ", S->ID);
 
@@ -162,23 +171,28 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
     return -1000;
 }
 
-if (sscanf(line, "%f", &input) == 1){
+char extra;
+
+if (sscanf(line, " %f %c", &input, &extra) == 1){
     printf("READ: %.2f\n", input);
     S->valid++;
     return input;
 } 
 else {
-    fprintf(reportfptr, "MISS sensor ID %hu\n", S->ID);
+    fprintf(reportfptr, "INVALID FORMAT sensor ID %hu: %s", S->ID, line);
     S->error_counter++;
     return -1000;
 }
 }
 }
-
 // --------- Cac ham ghi report -----------
 void calculate_max_min(Sensor_stats* S, float data){
 	if (S->max < data)   { S->max = data; }
-	if (S->min > data)   { S->min = data; }
+	if (S->min > data)   { 
+		if(data != INVALID_DATA){
+		S->min = data; 
+		}
+	}
 	return;
 }
 
@@ -202,16 +216,33 @@ void report(Sensor_stats* S, FILE* reportfptr){
 	rewind(sensorfptr);
 	uint16_t counter = 0;
 	double summing_data = 0;
-	float x;
+	float x, avg_value;
 	while (fscanf(sensorfptr, "%f", &x) == 1){
+		if(x != INVALID_DATA){
 		summing_data += x;
 		counter++;
+		}
 	}
-	float avg_value = summing_data/counter;
+	if(counter == 0){
+    fprintf(reportfptr, "\n------------\n");
+    fprintf(reportfptr,
+        "Sensor ID %hu:\n"
+        "  So luong ban tin loi: %hu\n"
+        "  So lan vuot nguong: %hu\n"
+        "  So lan tran bo dem:%ld\n"
+        "  GTLN/GTNN/GTTB: NaN/NaN/NaN (No valid data)\n",
+        S->ID, S->error_counter, S->over_counter,S->overflow_counter);
+    fprintf(reportfptr, "\n------------\n");
+    fclose(sensorfptr);
+    return;
+
+	}	else{
+	avg_value = summing_data/counter;
 	fprintf(reportfptr, "\n------------\n");
 	fprintf(reportfptr, "Sensor ID %hu:\n  So luong ban tin loi: %hu\n  So lan vuot nguong: %hu\n  So lan tran bo dem:%ld\n  GTLN/GTNN/GTTB: %f/%f/%f\n",S->ID, S->error_counter, S->over_counter, S->overflow_counter, S->max, S->min, avg_value);
 	fprintf(reportfptr, "\n------------\n");
 	fclose(sensorfptr);
+	}
 }
 
 void report_per_type(Sensor_stats* collection[], uint8_t total_sensor, const char* str, FILE* reportfptr){
