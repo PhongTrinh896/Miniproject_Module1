@@ -21,13 +21,13 @@ int main(){
 
     FILE *sensorFileptr = fopen("SENSOR_FILE.txt", "rt");
     if (sensorFileptr == NULL) {
-        printf("Khong the mo file sensor\n");
+        printf("Unable to open file sensor\n");
         return 0;
     }
 
     FILE *errorFileptr = fopen("ERROR_FILE.txt", "w+");
     if (errorFileptr == NULL){
-        printf("Khong the mo file error\n");
+        printf("Unable to open file error\n");
         fclose(sensorFileptr);
         return 0;
     }
@@ -52,7 +52,7 @@ int main(){
 
         for (uint8_t i = 0; i < total_sensor; i++) {
 
-            printf("Dang xu ly sensor %d\n", i);
+            printf("Procssing sensor %d\n", i);
 
             float input = receive_data_sensor(collection[i], errorFileptr);
 
@@ -65,6 +65,7 @@ int main(){
 
             if (check_invalid_data(input, collection[i], errorFileptr)) {
                 apply_average_filter(collection[i], input, errorFileptr);
+                send_actuator (collection[i]);
             }
 
             if (collection[i]->error_counter > MAXIMUM_ERROR ||
@@ -73,10 +74,12 @@ int main(){
                 delete_Node(collection, &total_sensor, i, errorFileptr);
                 i--; // tránh skip phần tử sau khi xóa
             }
+            send_actuator(collection[i]);
         }
     }
 
     // ===== REPORT =====
+    //FILE *finalFileptr = fopen("REPORT_FILE.txt", "a+"); Tạo hẳn file report
     FILE *finalFileptr = stdout;
 
     fprintf(finalFileptr, "FINAL REPORT ---\n");
