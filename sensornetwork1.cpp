@@ -71,7 +71,8 @@ while(1) {
             send_actuator(collection[i]);
         }
 
-        if (collection[i]->error_counter > MAXIMUM_ERROR ||collection[i]->current_state == DISCONNECTED) {
+        if (collection[i]->error_counter > MAXIMUM_ERROR ||
+            collection[i]->current_state == DISCONNECTED) {
 
             delete_Node(collection, &total_sensor, i, errorFileptr);
             i--;
@@ -80,6 +81,10 @@ while(1) {
 
     // 🔥 👉 REPORT SAU MỖI VÒNG
     printf("\n===== FULL REPORT =====\n");
+
+printf("--------------------------------------------------------------\n");
+printf("| ID | Error | Over | Overflow |   Max   |   Min   |   Avg   |\n");
+printf("--------------------------------------------------------------\n");
 
 long total_error = 0, valid_counter = 0;
 
@@ -90,6 +95,7 @@ report_per_type(collection, total_sensor, "GAS", stdout);
 report_per_type(collection, total_sensor, "LIGHT", stdout);
 
 // report từng sensor
+printf("---- Report for each sensors ------\n");
 for (int i = 0; i < total_sensor; i++) {
     total_error += collection[i]->error_counter;
     valid_counter += collection[i]->valid;
@@ -100,8 +106,9 @@ for (int i = 0; i < total_sensor; i++) {
 most_error(collection, &total_sensor, stdout);
 
 // tổng kết
-printf("\nTotal error: %ld\nTotal valid: %ld\n", total_error, valid_counter);
-//sleep(5)             // Dùng khi chạy nhận tín hiệu random liên tục 5s 1 vòng 
+printf("\nTotal error: %ld\nTotal valid: %ld\n",
+       total_error, valid_counter);
+
 }
 
 } 
