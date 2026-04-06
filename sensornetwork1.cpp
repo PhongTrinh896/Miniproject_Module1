@@ -103,7 +103,7 @@ most_error(collection, &total_sensor, stdout);
 // tổng kết
 printf("\nTotal error: %ld\nTotal valid: %ld\n",
        total_error, valid_counter);
-
+//sleep(5)             // Dùng khi chạy nhận tín hiệu random liên tục 5s 1 vòng 
 }
 
 } 
