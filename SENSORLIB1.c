@@ -106,7 +106,6 @@ uint8_t check_invalid_data(float data, Sensor_stats* S, FILE* ef) {
         return 1;
     }
     return 0; 
-   
 }
 
 
@@ -124,7 +123,6 @@ void apply_average_filter (Sensor_stats* S, float data, FILE* errorfptr){
     }
 
     if (count == 0) return; // tránh chia 0
-
     S->data = (float)(sum / count);
 
 }
@@ -154,7 +152,6 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
             return -1000;
         }
 
-        // 🔥 BỎ QUA dòng rỗng
         if (line[0] == '\n') {
     fprintf(reportfptr, "MISS sensor ID %hu\n", S->ID);
     S->error_counter++;
