@@ -99,11 +99,15 @@ void add_data_to_buffer(Sensor_stats* S, float data, FILE* ef) {
     update_data_to_file(S, data); 
 }
 
+// Kiểm tra giá trị vượt ngưỡng
 uint8_t check_invalid_data(float data, Sensor_stats* S, FILE* ef) {
     if (data > S->maximum_value) {
-        S->over_counter++;
-        fprintf(ef, "[OVERLOAD] ID %d: %.2f\n", S->ID, data);
-        return 1;
+        time_t now = time(NULL);
+		printf("Sensor ID number %hu reached overload value %f at %s\n", S->ID, data, ctime(&now));
+		fprintf(ef, "Sensor ID number %hu reached overload value %f at %s\n", S->ID, data, ctime(&now));
+		S->over_counter ++;
+		
+		return 1;
     }
     return 0; 
 }
@@ -141,7 +145,7 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
     char line[100];
     float input;
 
-    usleep(1000000 / (S->frequency > 0 ? S->frequency : 1));
+    Sleep(1000 / (S->frequency > 0 ? S->frequency : 1));
 
     printf("Nhap du lieu cho sensor %d: ", S->ID);
 
