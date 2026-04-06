@@ -1,5 +1,5 @@
-#ifndef SENSORLIB
-#define SENSORLIB
+#ifndef SENSORLIB1
+#define SENSORLIB1
 
 #include <stdio.h>
 #include <stdlib.h>
