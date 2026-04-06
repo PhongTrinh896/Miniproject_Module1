@@ -15,19 +15,20 @@
 #define MAXIMUM_ERROR 20
 #define INVALID_DATA -9999
 
+
 // ---------- MAIN FUNCTION -----------//
 int main(){
     uint8_t sensor_counter = 0, total_sensor = 0;
 
     FILE *sensorFileptr = fopen("SENSOR_FILE.txt", "rt");
     if (sensorFileptr == NULL) {
-        printf("Unable to open file sensor\n");
+        printf("Khong the mo file sensor\n");
         return 0;
     }
 
     FILE *errorFileptr = fopen("ERROR_FILE.txt", "w+");
     if (errorFileptr == NULL){
-        printf("Unable to open file error\n");
+        printf("Khong the mo file error\n");
         fclose(sensorFileptr);
         return 0;
     }
@@ -48,63 +49,61 @@ int main(){
     printf("Loaded %d sensors\n", total_sensor);
 
     // ===== MAIN LOOP =====
-    for (int loop = 0; loop < 5; loop++) {
+while(1) {
 
-        for (uint8_t i = 0; i < total_sensor; i++) {
+    printf("\n===== SAMPLING ROUND =====\n" );
 
-            printf("Procssing sensor %d\n", i);
+    for (uint8_t i = 0; i < total_sensor; i++) {
 
-            float input = receive_data_sensor(collection[i], errorFileptr);
+        printf("Processing sensor %d\n", i);
 
-            if (input == -1000) {
-                add_data_to_buffer(collection[i], INVALID_DATA, errorFileptr);
-                continue;
-            }
+        float input = receive_data_sensor(collection[i], errorFileptr);
 
-            add_data_to_buffer(collection[i], input, errorFileptr);
+        if (input == -1000) {
+            add_data_to_buffer(collection[i], INVALID_DATA, errorFileptr);
+            continue;
+        }
 
-            if (check_invalid_data(input, collection[i], errorFileptr)) {
-                apply_average_filter(collection[i], input, errorFileptr);
-                send_actuator (collection[i]);
-            }
+        add_data_to_buffer(collection[i], input, errorFileptr);
 
-            if (collection[i]->error_counter > MAXIMUM_ERROR ||
-                collection[i]->current_state == DISCONNECTED) {
-
-                delete_Node(collection, &total_sensor, i, errorFileptr);
-                i--; // tránh skip phần tử sau khi xóa
-            }
+        if (check_invalid_data(input, collection[i], errorFileptr)) {
+            apply_average_filter(collection[i], input, errorFileptr);
             send_actuator(collection[i]);
+        }
+
+        if (collection[i]->error_counter > MAXIMUM_ERROR ||
+            collection[i]->current_state == DISCONNECTED) {
+
+            delete_Node(collection, &total_sensor, i, errorFileptr);
+            i--;
         }
     }
 
-    // ===== REPORT =====
-    //FILE *finalFileptr = fopen("REPORT_FILE.txt", "a+"); Tạo hẳn file report
-    FILE *finalFileptr = stdout;
+    // 🔥 👉 REPORT SAU MỖI VÒNG
+    printf("\n===== FULL REPORT =====\n");
 
-    fprintf(finalFileptr, "FINAL REPORT ---\n");
+long total_error = 0, valid_counter = 0;
 
-    long total_error = 0, valid_counter = 0;
+// report theo loại
+report_per_type(collection, total_sensor, "TEMP", stdout);
+report_per_type(collection, total_sensor, "HUMID", stdout);
+report_per_type(collection, total_sensor, "GAS", stdout);
+report_per_type(collection, total_sensor, "LIGHT", stdout);
 
-    report_per_type(collection, total_sensor, "TEMP", finalFileptr);
-    report_per_type(collection, total_sensor, "HUMID", finalFileptr);
-    report_per_type(collection, total_sensor, "GAS", finalFileptr);
-    report_per_type(collection, total_sensor, "LIGHT", finalFileptr);
-
-    for (int i = 0; i < total_sensor; i++) {
-        total_error += collection[i]->error_counter;
-        valid_counter += collection[i]->valid;
-        report(collection[i], finalFileptr);
-    }
-
-    most_error(collection, &total_sensor, errorFileptr);
-
-    fprintf(finalFileptr,
-            "\nTotal error: %ld\nTotal valid: %ld\n",
-            total_error, valid_counter);
-
-    fclose(errorFileptr);
-    fclose(finalFileptr);
-
-    return 0;
+// report từng sensor
+for (int i = 0; i < total_sensor; i++) {
+    total_error += collection[i]->error_counter;
+    valid_counter += collection[i]->valid;
+    report(collection[i], stdout);
 }
+
+// sensor lỗi nhiều nhất
+most_error(collection, &total_sensor, stdout);
+
+// tổng kết
+printf("\nTotal error: %ld\nTotal valid: %ld\n",
+       total_error, valid_counter);
+
+}
+
+} 
