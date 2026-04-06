@@ -210,37 +210,45 @@ void most_error(Sensor_stats* collection[], uint8_t* total_sensor, FILE* errorfp
 }
 
 void report(Sensor_stats* S, FILE* reportfptr){
-	FILE *sensorfptr = fopen(S->data_file_name, "r");
-	rewind(sensorfptr);
-	uint16_t counter = 0;
-	double summing_data = 0;
-	float x, avg_value;
-	while (fscanf(sensorfptr, "%f", &x) == 1){
-		if(x != INVALID_DATA){
-		summing_data += x;
-		counter++;
-		}
-	}
-	if(counter == 0){
-    fprintf(reportfptr, "\n------------\n");
-    fprintf(reportfptr,
-        "Sensor ID %hu:\n"
-        "  So luong ban tin loi: %hu\n"
-        "  So lan vuot nguong: %hu\n"
-        "  So lan tran bo dem:%ld\n"
-        "  GTLN/GTNN/GTTB: NaN/NaN/NaN (No valid data)\n",
-        S->ID, S->error_counter, S->over_counter,S->overflow_counter);
-    fprintf(reportfptr, "\n------------\n");
-    fclose(sensorfptr);
-    return;
+    FILE *sensorfptr = fopen(S->data_file_name, "r");
+    if (sensorfptr == NULL) return;
 
-	}	else{
-	avg_value = summing_data/counter;
-	fprintf(reportfptr, "\n------------\n");
-	fprintf(reportfptr, "Sensor ID %hu:\n  So luong ban tin loi: %hu\n  So lan vuot nguong: %hu\n  So lan tran bo dem:%ld\n  GTLN/GTNN/GTTB: %f/%f/%f\n",S->ID, S->error_counter, S->over_counter, S->overflow_counter, S->max, S->min, avg_value);
-	fprintf(reportfptr, "\n------------\n");
-	fclose(sensorfptr);
-	}
+    uint16_t counter = 0;
+    double summing_data = 0;
+    float x, avg_value;
+
+    while (fscanf(sensorfptr, "%f", &x) == 1){
+        if(x != INVALID_DATA){
+            summing_data += x;
+            counter++;
+        }
+    }
+
+    if(counter == 0){
+        fprintf(reportfptr,
+            "| %2hu | %5hu | %4hu | %8ld | %7s | %7s | %7s |\n",
+            S->ID,
+            S->error_counter,
+            S->over_counter,
+            S->overflow_counter,
+            "NaN", "NaN", "NaN"
+        );
+    } else {
+        avg_value = summing_data / counter;
+
+        fprintf(reportfptr,
+            "| %2hu | %5hu | %4hu | %8ld | %7.2f | %7.2f | %7.2f |\n",
+            S->ID,
+            S->error_counter,
+            S->over_counter,
+            S->overflow_counter,
+            S->max,
+            S->min,
+            avg_value
+        );
+    }
+
+    fclose(sensorfptr);
 }
 
 void report_per_type(Sensor_stats* collection[], uint8_t total_sensor, const char* str, FILE* reportfptr){
