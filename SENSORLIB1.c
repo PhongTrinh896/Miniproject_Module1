@@ -1,4 +1,4 @@
-#include "SENSORLIB.h"
+#include "SENSORLIB1.h"
 #include <unistd.h>
 
 Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
