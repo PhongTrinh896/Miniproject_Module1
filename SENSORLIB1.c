@@ -174,7 +174,6 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
 char extra;
 
 if (sscanf(line, " %f %c", &input, &extra) == 1){
-    printf("READ: %.2f\n", input);
     S->valid++;
     return input;
 } 
