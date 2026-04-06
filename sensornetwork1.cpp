@@ -99,8 +99,6 @@ int main(){
 
     most_error(collection, &total_sensor, errorFileptr);
 
-    printf("DEBUG NEW CODE\n");
-
     fprintf(finalFileptr,
             "\nTotal error: %ld\nTotal valid: %ld\n",
             total_error, valid_counter);
