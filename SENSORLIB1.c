@@ -153,18 +153,57 @@ void handle_error(Sensor_stats* S, FILE* reportfptr, const char* msg) {
 }
 
 //Sensor nhan input theo chu ky nhan tin hieu
-//float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
-
-    //float input;
-
-   // input = (rand() % 1000) / 10.0;
-
-   // printf("AUTO DATA sensor %d: %.2f\n", S->ID, input);
-
-   // S->valid++;
-  // return input;
-//}
 float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
+    char line[100];
+    float input;
+
+    usleep(1000000 / (S->frequency > 0 ? S->frequency : 1));
+
+    printf("AUTO input sensor %d: ", S->ID);
+
+    // 🔥 RANDOM INPUT thay cho fgets
+    int r = rand() % 100;
+
+    if (r < 10) {
+        // MISS
+        strcpy(line, "\n");
+    }
+    else if (r < 20) {
+        // chuỗi rác
+        strcpy(line, "abcxyz\n");
+    }
+    else if (r < 30) {
+        // số + chữ (sai format)
+        sprintf(line, "%.2f abc\n", (rand()%1000)/10.0);
+    }
+    else {
+        // dữ liệu hợp lệ
+        sprintf(line, "%.2f\n", (rand()%1000)/10.0);
+    }
+
+    printf("%s", line);
+
+    // ===== GIỮ NGUYÊN LOGIC CŨ =====
+
+    if (line[0] == '\n') {
+        handle_error(S, reportfptr, "MISS");
+        return -1000;
+    }
+
+    char extra;
+
+    if (sscanf(line, " %f %c", &input, &extra) == 1){
+        S->valid++;
+        S->consecutive_error = 0;
+        return input;
+    } 
+    else {
+        handle_error(S, reportfptr, "INVALID FORMAT");
+        return -1000;
+    }
+}
+//nhap data tu ban phim
+/*float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
     char line[100];
     float input;
 
@@ -198,7 +237,8 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
             return -1000;
         }
     }
-}
+}*/
+
 // --------- Cac ham ghi report -----------
 void calculate_max_min(Sensor_stats* S, float data){
 	if (S->max < data)   { S->max = data; }
