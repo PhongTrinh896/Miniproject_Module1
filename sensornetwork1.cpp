@@ -70,6 +70,9 @@ while(1) {
             apply_average_filter(collection[i], input, errorFileptr);
             send_actuator(collection[i]);
         }
+        else {
+            send_actuator(collection[i]);
+        }
 
         if (collection[i]->error_counter > MAXIMUM_ERROR ||
             collection[i]->current_state == DISCONNECTED) {
@@ -79,7 +82,7 @@ while(1) {
         }
     }
 
-    // 🔥 👉 REPORT SAU MỖI VÒNG
+
     printf("\n===== FULL REPORT =====\n");
 
 printf("--------------------------------------------------------------\n");
