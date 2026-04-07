@@ -168,7 +168,7 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
     char line[100];
     float input;
 
-    Sleep(1000 / (S->frequency > 0 ? S->frequency : 1));
+    usleep(1000 / (S->frequency > 0 ? S->frequency : 1));
 
     printf("Nhap du lieu cho sensor %d: ", S->ID);
 
