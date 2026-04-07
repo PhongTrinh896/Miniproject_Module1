@@ -160,8 +160,6 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
     usleep(1000000 / (S->frequency > 0 ? S->frequency : 1));
 
     printf("AUTO input sensor %d: ", S->ID);
-
-    // 🔥 RANDOM INPUT thay cho fgets
     int r = rand() % 100;
 
     if (r < 10) {
@@ -182,8 +180,6 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
     }
 
     printf("%s", line);
-
-    // ===== GIỮ NGUYÊN LOGIC CŨ =====
 
     if (line[0] == '\n') {
         handle_error(S, reportfptr, "MISS");
@@ -223,9 +219,7 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
             handle_error(S, reportfptr, "MISS");
             return -1000;
         }
-
         char extra;
-
         // DATA HOP LE
         if (sscanf(line, " %f %c", &input, &extra) == 1){
             S->valid++;
