@@ -52,30 +52,35 @@ int main(){
 while(1) {
 
     printf("\n===== SAMPLING ROUND =====\n" );
-
+    
     for (uint8_t i = 0; i < total_sensor; i++) {
-
+        
+        Sensor_stats *S = collection[i];
         printf("Processing sensor %d\n", i);
-
-        float input = receive_data_sensor(collection[i], errorFileptr);
-
-        if (input == -1000) {
-            add_data_to_buffer(collection[i], INVALID_DATA, errorFileptr);
+        if (S->current_state == DISCONNECTED) {
+            delete_Node(collection, &total_sensor, i, errorFileptr);
+            i--;
             continue;
         }
 
-        add_data_to_buffer(collection[i], input, errorFileptr);
+        float input = receive_data_sensor(S, errorFileptr);
 
-        if (check_invalid_data(input, collection[i], errorFileptr)) {
-            apply_average_filter(collection[i], input, errorFileptr);
-            send_actuator(collection[i]);
+        if (input == -1000) {
+            add_data_to_buffer(S, INVALID_DATA, errorFileptr);
+            continue;
+        }
+
+        add_data_to_buffer(S, input, errorFileptr);
+
+        if (check_invalid_data(input, S, errorFileptr)) {
+            apply_average_filter(S, input, errorFileptr);
+            send_actuator(S);
         }
         else {
-            send_actuator(collection[i]);
+            send_actuator(S);
         }
 
-        if (collection[i]->error_counter > MAXIMUM_ERROR ||
-            collection[i]->current_state == DISCONNECTED) {
+        if (S->error_counter > MAXIMUM_ERROR || S->current_state == DISCONNECTED) {
 
             delete_Node(collection, &total_sensor, i, errorFileptr);
             i--;
