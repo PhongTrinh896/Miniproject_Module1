@@ -43,6 +43,7 @@ typedef struct Sensor_stats{
 	
 	float buffer[BUFFER_SIZE];
 	uint8_t head, tail, buffer_count;
+	int consecutive_error;
 	
 	float max, min;
 } Sensor_stats;
