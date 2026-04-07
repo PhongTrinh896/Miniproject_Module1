@@ -12,7 +12,7 @@
 #define MAX_SENSORS 30
 #define BUFFER_SIZE 10
 #define NUMBER_OF_STATS 4
-#define MAXIMUM_ERROR 20
+#define MAXIMUM_ERROR 5
 #define INVALID_DATA -9999
 
 
