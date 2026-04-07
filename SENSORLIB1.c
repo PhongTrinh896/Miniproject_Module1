@@ -7,6 +7,7 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 	S->ID = sensor_counter;
 	char type[10];
 	sensor_type s;
+	S->consecutive_error = 0;
 	uint8_t verifier = fscanf(sensorfptr, " %s %s %hu %f", S->sensor_name, type, &S->frequency, &S->maximum_value);
 	s = parse_sensor_type(type);
 	if (s != INVALID){
@@ -136,6 +137,17 @@ void send_actuator (Sensor_stats* S){
 		printf("ALERT\n");
 	}
 }
+void handle_error(Sensor_stats* S, FILE* reportfptr, const char* msg) {
+    fprintf(reportfptr, "%s sensor ID %hu\n", msg, S->ID);
+
+    S->error_counter++;
+    S->consecutive_error++;
+
+    if (S->consecutive_error >= 5) {
+        fprintf(reportfptr,"Sensor ID %hu disconnected due to consecutive errors\n", S->ID);
+        S->current_state = DISCONNECTED;
+    }
+}
 
 //Sensor nhan input theo chu ky nhan tin hieu
 //float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
@@ -164,24 +176,25 @@ float receive_data_sensor(Sensor_stats *S, FILE* reportfptr){
             return -1000;
         }
 
+        // MISS
         if (line[0] == '\n') {
-    fprintf(reportfptr, "MISS sensor ID %hu\n", S->ID);
-    S->error_counter++;
-    return -1000;
-}
+            handle_error(S, reportfptr, "MISS");
+            return -1000;
+        }
 
-char extra;
+        char extra;
 
-if (sscanf(line, " %f %c", &input, &extra) == 1){
-    S->valid++;
-    return input;
-} 
-else {
-    fprintf(reportfptr, "INVALID FORMAT sensor ID %hu: %s", S->ID, line);
-    S->error_counter++;
-    return -1000;
-}
-}
+        // DATA HOP LE
+        if (sscanf(line, " %f %c", &input, &extra) == 1){
+            S->valid++;
+            S->consecutive_error = 0;
+            return input;
+        } 
+        else {
+            handle_error(S, reportfptr, "INVALID FORMAT");
+            return -1000;
+        }
+    }
 }
 // --------- Cac ham ghi report -----------
 void calculate_max_min(Sensor_stats* S, float data){
