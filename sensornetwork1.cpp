@@ -113,5 +113,26 @@ printf("\nTotal error: %ld\nTotal valid: %ld\n",
        total_error, valid_counter);
 
 }
+    /* FINAL REPORT 
+    FILE *finalFileptr = fopen("REPORT_FILE.txt", "a+");
+    fprintf(finalFileptr, "FINAL REPORT ---\n");
+    long total_error = 0, valid_counter = 0;
+    
+    report_per_type(collection, total_sensor, "TEMP", finalFileptr);
+    report_per_type(collection, total_sensor, "HUMID", finalFileptr);
+    report_per_type(collection, total_sensor, "GAS", finalFileptr);
+    report_per_type(collection, total_sensor, "LIGHT", finalFileptr);
+    
+    for (int i = 0; i < total_sensor; i++){
+    	total_error += collection[i]->error_counter;
+    	valid_counter += collection[i]->valid;
+        report(collection[i], finalFileptr);
+    }
+    most_error(collection, &total_sensor, errorFileptr);
+    fprintf(finalFileptr, "\nTotal error: %ld\nTotal valid: %ld\n", total_error, valid_counter);
+    fclose(errorFileptr);
+    fclose(finalFileptr);
+    */
+    return 0;
 
 } 
