@@ -17,7 +17,10 @@ Sensor_stats* init_sensor(uint8_t sensor_counter, FILE *sensorfptr){
 		free(S);
 		return NULL;
 	}
-	if (verifier != NUMBER_OF_STATS)    return NULL;
+	if (verifier != NUMBER_OF_STATS) {
+    free(S);
+    return NULL;
+}
 	S->current_state = CONNECTED;
 	S->error_counter = 0;
 	S->over_counter = 0;
