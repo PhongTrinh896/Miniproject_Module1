@@ -94,7 +94,12 @@ int main(){
             add_data_to_buffer(collection[i], input, errorFileptr);
             if (check_invalid_data(input, collection[i], errorFileptr)){
             	apply_average_filter(collection[i], input, errorFileptr);
+				send_actuator(collection[i]);
 			}
+			else{
+				send_actuator(collection[i]);
+			}
+			
             if (collection[i]->error_counter > MAXIMUM_ERROR || collection[i]->current_state == DISCONNECTED){
                 delete_Node(collection, &total_sensor, i, errorFileptr);
                 i--; 
