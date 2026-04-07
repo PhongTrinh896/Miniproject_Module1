@@ -140,6 +140,7 @@ void send_actuator (Sensor_stats* S){
 		printf("ALERT\n");
 	}
 }
+
 void handle_error(Sensor_stats* S, FILE* reportfptr, const char* msg) {
     fprintf(reportfptr, "%s sensor ID %hu\n", msg, S->ID);
 
