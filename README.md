@@ -8,9 +8,9 @@ NOTE: OFFICIAL FILES: SENSORLIB1.h and SENSORLIB1.c (official library file), sen
 # INPUT 
 Since it is only simulation, we limit the input to a strictly formatted file of input sensors that you should adhere to, presented as follows: You should
 - Create a file called SENSOR_FILE.txt
-- Format the sensor EACH LINE as: Index_number(or STT) Sensor_name Sensor_type Frequency(in Hz) Max_value
+- Format the sensor EACH LINE as: Sensor_name Sensor_type Frequency(in Hz) Max_value
 - Notes:
-  + Each factor is separated with a SPACE (follow the mentioned format (for example: 0 TEMPSENSOR1 TEMP 5 100.0; 1 HUMID 10 80.0
+  + Each factor is separated with a SPACE (follow the mentioned format (for example: TEMPSENSOR1 TEMP 5 100.0; Sensor2 HUMID 10 80.0;...)
   + Sensors' types are limited only to these following: "TEMP" / "HUMID" / "GAS" / "LIGHT"
   + Sensor's name must be written as a whole (exp: TEMP_1, Sensor_1,...)
   + Max_value is the required value for the actuator (connected to that sensor) to activate.
