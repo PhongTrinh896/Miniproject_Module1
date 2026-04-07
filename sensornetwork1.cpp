@@ -116,7 +116,7 @@ most_error(collection, &total_sensor, stdout);
 // tổng kết
 printf("\nTotal error: %ld\nTotal valid: %ld\n",
        total_error, valid_counter);
-
+ //sleep(10);         //khi chay ham random trong .c
 }
     /* FINAL REPORT 
     FILE *finalFileptr = fopen("REPORT_FILE.txt", "a+");
